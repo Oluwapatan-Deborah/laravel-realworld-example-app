@@ -1,0 +1,50 @@
+
+- name: Validate Composer checksum
+  get_url:
+    checksum: "sha384:795f976fe0ebd8b75f26a6dd68f78fd3453ce79f32ecb33e7fd087d39bfeb978342fb73ac986cd4f54edd0dc902601dc"
+    dest: /usr/src/
+    url: https://getcomposer.org/installer
+  become: yes
+
+- name: Download and install Composer
+  shell: curl -sS https://getcomposer.org/installer | php
+  args:
+    chdir: /usr/src/
+    creates: /usr/local/bin/composer
+    warn: false
+  become: yes
+
+- name: Add Composer to global path
+  copy: 
+    dest: /usr/local/bin/composer
+    group: root
+    mode: '0755'
+    owner: root
+    src: /usr/src/composer.phar
+    remote_src: yes
+  become: yes
+
+- name: Git checkout
+  ansible.builtin.git:
+    repo: 'https://github.com/f1amy/laravel-realworld-example-app'
+    dest: /home/ubuntu
+
+- name: Go to the folder and execute command
+  command: chdir=/home/ubuntu/laravel-realworld-example-app
+
+- composer:
+    command: create-project
+
+- name: postgres install
+  template:
+    src: "files/post.sh"
+    dest: "/home/ubuntu/laravel-realworld-example-app"
+
+- name: run postgres script
+  shell: chmod 777 post.sh && ./post.sh
+
+- name: start application
+  command: ./vendor/bin/sail up -d
+
+- name: migrate database
+  command: sail artisan migrate --seed  
